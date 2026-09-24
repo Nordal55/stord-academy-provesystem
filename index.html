@@ -2,7 +2,7 @@
 <html lang="no">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Stord Academy – Prøvesystem Prototype 7</title>
+<title>Stord Academy – Prøvesystem Prototype 8</title>
 <style>
 *{box-sizing:border-box} body{font-family:Arial,sans-serif;margin:0;background:#f3f5f6;color:#172126}
 header{background:#173f35;color:white;padding:18px 24px;display:flex;justify-content:space-between;gap:12px;align-items:center}
@@ -24,7 +24,7 @@ input,textarea{width:100%;padding:10px;border:1px solid #bfc7ca;border-radius:7p
 </style>
 </head>
 <body>
-<header><div><b>STORD ACADEMY</b><br><span style="font-size:.9rem">Isolatørfaget – Prøvesystem</span></div><div id="headStatus">Prototype 7</div></header>
+<header><div><b>STORD ACADEMY</b><br><span style="font-size:.9rem">Isolatørfaget – Prøvesystem</span></div><div id="headStatus">Prototype 8 – Nettversjon</div></header>
 <main>
 <section id="home">
  <div class="card"><h1>Prøvesystem</h1><p>Velg hvordan systemet skal brukes.</p>
@@ -33,8 +33,9 @@ input,textarea{width:100%;padding:10px;border:1px solid #bfc7ca;border-radius:7p
 
 <section id="learner" class="hidden">
  <div class="card"><h2>Lærling</h2>
- <label>Navn</label><input id="studentName" autocomplete="off" placeholder="Skriv fullt navn" oninput="renderStudentHistory()">
- <div id="studentHistory" style="margin-top:12px"></div>
+ <label>Navn</label><input id="studentName" autocomplete="off" placeholder="Skriv fullt navn">
+ <div class="notice" style="margin-top:12px">Når du starter en prøve får du en unik tilgangskode. Ta vare på koden – den brukes for å fortsette prøven og se resultatet.</div>
+ <div class="row" style="margin-top:12px"><input id="resumeCode" style="max-width:220px" placeholder="Tilgangskode"><button class="secondary" onclick="resumeAttempt()">Fortsett / se resultat</button></div>
  <h3>Start ny prøve</h3>
  <div class="row">
   <div class="examcard"><h3>Prøve 1 – Isolatørfaget</h3><p>6 hovedoppgaver · 5 timer</p><button onclick="newAttempt(1)">Start ny Prøve 1</button></div>
@@ -54,8 +55,7 @@ input,textarea{width:100%;padding:10px;border:1px solid #bfc7ca;border-radius:7p
 </section>
 
 <section id="instructor" class="hidden">
- <div class="card"><h2>Instruktør – besvarelser</h2><p class="muted">Besvarelser, retting og resultater lagres lokalt i denne nettleseren.</p>
- <div id="attemptList"></div><br><button class="secondary" onclick="show('home')">Tilbake</button></div>
+ <div class="card"><h2>Instruktør – besvarelser</h2><p class="muted">Nettversjon: besvarelser hentes fra Supabase.</p><div id="instructorLogin"><label>E-post</label><input id="instEmail" type="email" placeholder="din e-post"><label style="display:block;margin-top:8px">Passord</label><input id="instPassword" type="password" placeholder="passord"><div class="row" style="margin-top:8px"><button onclick="instructorSignIn()">Logg inn</button><button class="secondary" onclick="instructorSignUp()">Opprett instruktørkonto</button></div><p class="muted">Første konto må godkjennes som instruktør i Supabase før den får tilgang til besvarelser.</p></div><div id="attemptList"></div><br><button class="secondary" onclick="show('home')">Tilbake</button></div>
  <div id="grading"></div>
 </section>
 
@@ -67,7 +67,11 @@ input,textarea{width:100%;padding:10px;border:1px solid #bfc7ca;border-radius:7p
  <div id="refBody"></div>
 </div></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+const SUPABASE_URL="https://isgprdqgjcaefbkkdsus.supabase.co";
+const SUPABASE_KEY="sb_publishable_S26a5Ltqgc-f6yGkIZMWNA_6BbgXFA0";
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const exam1Questions=[
 {t:"Oppgave 1 – Maskiner og håndverktøy",w:"15 %",info:"Situasjon: Du har fått i oppgave å drifte et prefabrikkeringsverksted. Verkstedet har ikke programmerbare maskiner. Du får individuelle bestillinger fra prosjekt.<br><b>Vedlegg:</b> Se originalbildene av isolasjonskassene via knappen «Se bilder og vedlegg – prøve 1».",subs:[
 ["1a – Maskiner","Du skal produsere isolasjonskasser i tynnplatemetall. Oppgi aktuelle maskiner og beskriv hva de brukes til."],
@@ -121,96 +125,36 @@ let current=null, qi=0, timerHandle=null;
 
 function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;")}
 function show(id){["home","learner","exam","instructor","result"].forEach(x=>document.getElementById(x).classList.toggle("hidden",x!==id)); if(id!=="exam"){clearInterval(timerHandle);timerHandle=null}}
-function loadAttempts(){try{return JSON.parse(localStorage.getItem("stord_v7_attempts")||"[]")}catch(e){return []}}
-function saveAttempts(a){localStorage.setItem("stord_v7_attempts",JSON.stringify(a))}
-function getAttempt(id){return loadAttempts().find(a=>a.id===id)}
-function patchAttempt(id,patch){let a=loadAttempts(),i=a.findIndex(x=>x.id===id);if(i>=0){a[i]={...a[i],...patch};saveAttempts(a);current=a[i]}}
-function ansKey(id,i,j){return `stord_v7_ans_${id}_${i}_${j}`}
-function ptsKey(id,i,j){return `stord_v7_pts_${id}_${i}_${j}`}
-function comKey(id,i,j){return `stord_v7_com_${id}_${i}_${j}`}
-
-function openLearner(){show("learner");document.getElementById("studentName").value="";document.getElementById("studentHistory").innerHTML="";document.getElementById("headStatus").textContent="Lærling"}
-function newAttempt(examNo){
- let name=document.getElementById("studentName").value.trim().replace(/\s+/g," ");
- if(!name)return alert("Skriv inn navn først.");
- let id="A"+Date.now()+"_"+Math.random().toString(36).slice(2,7);
- let a={id,name,examNo,started:Date.now(),submitted:null,published:false,status:"Pågår",overall:"",total:null};
- let all=loadAttempts();all.push(a);saveAttempts(all);openAttempt(id);
+let cacheAnswers={};
+function key(i,j){return `${i+1}:${j+1}`}
+async function openLearner(){show("learner");document.getElementById("studentName").value="";document.getElementById("resumeCode").value="";document.getElementById("headStatus").textContent="Lærling"}
+async function newAttempt(examNo){
+ let name=document.getElementById("studentName").value.trim().replace(/\s+/g," "); if(!name)return alert("Skriv inn navn først.");
+ let {data,error}=await db.rpc('start_exam',{p_student_name:name,p_exam_no:examNo}); if(error)return alert("Kunne ikke starte prøven: "+error.message);
+ let r=Array.isArray(data)?data[0]:data; current={id:r.attempt_id,name,examNo,started:Date.now(),accessCode:r.access_code,status:"Pågår"}; cacheAnswers={};
+ localStorage.setItem('stord_v8_session',JSON.stringify(current)); alert(`Prøven er startet. DIN TILGANGSKODE ER: ${r.access_code}\n\nSkriv den ned. Du trenger den for å fortsette eller se resultatet.`); qi=0;show("exam");renderExam();startTimer();
 }
-function openAttempt(id){
- let a=getAttempt(id);if(!a)return alert("Fant ikke besvarelsen.");
- if(a.submitted)return alert("Denne prøven er allerede levert.");
- current=a;qi=0;show("exam");document.getElementById("headStatus").textContent=`Prøve ${a.examNo} · ${a.name}`;renderExam();startTimer();
+async function resumeAttempt(){
+ let code=document.getElementById('resumeCode').value.trim().toUpperCase(); if(!code)return alert('Skriv inn tilgangskoden.');
+ let {data,error}=await db.rpc('get_exam',{p_access_code:code}); if(error)return alert('Fant ikke prøven: '+error.message); let r=Array.isArray(data)?data[0]:data;if(!r)return alert('Fant ingen prøve med denne koden.');
+ current={id:r.attempt_id,name:r.student_name,examNo:r.exam_no,started:new Date(r.started_at).getTime(),accessCode:code,status:r.status,published:r.published,total:r.total_points,overall:r.overall_comment};
+ if(r.published)return viewResultOnline(); if(r.status!=='Pågår')return alert('Prøven er levert og venter på retting.');
+ await loadAnswers(); qi=0;show('exam');renderExam();startTimer();
 }
-function renderStudentHistory(){
- let name=document.getElementById("studentName").value.trim().toLowerCase(),el=document.getElementById("studentHistory");
- if(!name){el.innerHTML="";return}
- let mine=loadAttempts().filter(a=>a.name.toLowerCase()===name).reverse();
- if(!mine.length){el.innerHTML='<div class="notice">Nytt navn – prøvene under starter helt rent.</div>';return}
- let s='<h3>Tidligere prøver</h3>';
- mine.forEach(a=>{
-   let action=!a.submitted?`<button onclick="openAttempt('${a.id}')">Fortsett</button>`:a.published?`<button onclick="viewResult('${a.id}')">Se resultat</button>`:'<span class="badge">Levert – venter på retting</span>';
-   s+=`<div class="learnerrow"><div><b>Prøve ${a.examNo}</b><br><span class="muted">${esc(a.status)}</span></div>${action}</div>`;
- });
- el.innerHTML=s;
-}
-function saveCurrentPage(){
- if(!current)return;
- document.querySelectorAll("textarea[data-i]").forEach(t=>localStorage.setItem(ansKey(current.id,+t.dataset.i,+t.dataset.j),t.value));
-}
-function renderExam(){
- let qs=EXAMS[current.examNo],q=qs[qi];
- document.getElementById("examWho").textContent=current.name;
- document.getElementById("examTitle").textContent=`Prøve ${current.examNo} · Oppgave ${qi+1} av ${qs.length}`;
- document.getElementById("qtitle").textContent=q.t;document.getElementById("qweight").textContent="Vekting: "+q.w;
- document.getElementById("qinfo").innerHTML=q.info;document.getElementById("bar").style.width=((qi+1)/qs.length*100)+"%";
- document.getElementById("qnav").innerHTML=qs.map((x,i)=>`<button class="${i===qi?'active':''}" onclick="jump(${i})">${i+1}</button>`).join("");
- document.getElementById("subs").innerHTML=q.subs.map((s,j)=>`<div style="margin-top:18px"><h3>${esc(s[0])}</h3><p>${esc(s[1])}</p><textarea data-i="${qi}" data-j="${j}" oninput="localStorage.setItem(ansKey(current.id,${qi},${j}),this.value)" placeholder="Skriv svaret her...">${esc(localStorage.getItem(ansKey(current.id,qi,j))||"")}</textarea></div>`).join("");
- document.getElementById("resource1").innerHTML=current.examNo===1?'<button onclick="openRefs1()">🖼️ Bilder og vedlegg – prøve 1</button>':'';
- document.getElementById("resource2").innerHTML=current.examNo===2?'<button onclick="openRefs2()">📐 Tegninger og løsninger</button> <a href="ArmaFlex_520_Sikkerhetsdatablad_NO.pdf" target="_blank"><button type="button">📄 Åpne SDS – ArmaFlex 520</button></a>':'';
-}
-function jump(i){saveCurrentPage();qi=i;renderExam()} function move(d){saveCurrentPage();let n=qi+d,qs=EXAMS[current.examNo];if(n>=0&&n<qs.length){qi=n;renderExam()}}
-function startTimer(){clearInterval(timerHandle);tick();timerHandle=setInterval(tick,1000)}
-function tick(){
- if(!current)return;let left=Math.max(0,5*3600-Math.floor((Date.now()-current.started)/1000));
- let h=String(Math.floor(left/3600)).padStart(2,"0"),m=String(Math.floor(left%3600/60)).padStart(2,"0"),s=String(left%60).padStart(2,"0");
- document.getElementById("timer").textContent=`${h}:${m}:${s}`;if(left===0){clearInterval(timerHandle);submitAttempt(true)}
-}
-function submitAttempt(auto=false){
- saveCurrentPage();if(!auto&&!confirm("Vil du levere prøven? Etter levering kan lærlingen ikke endre svarene."))return;
- patchAttempt(current.id,{submitted:new Date().toLocaleString("no-NO"),status:"Levert"});
- alert(auto?"Tiden er ute. Prøven er levert.":"Prøven er levert.");
- show("home");document.getElementById("headStatus").textContent="Prototype 7";
-}
-
-function openInstructor(){show("instructor");document.getElementById("headStatus").textContent="Instruktør";document.getElementById("grading").innerHTML="";renderAttemptList()}
-function renderAttemptList(){
- let a=loadAttempts().slice().reverse(),el=document.getElementById("attemptList");
- if(!a.length){el.innerHTML="<p>Ingen besvarelser ennå.</p>";return}
- el.innerHTML=a.map(x=>`<div class="learnerrow"><div><b>${esc(x.name)}</b> – Prøve ${x.examNo}<br><span class="muted">${esc(x.status)}${x.submitted?" · levert "+esc(x.submitted):""}</span></div><div>${x.submitted?`<button onclick="grade('${x.id}')">${x.published?"Åpne retting":"Rett prøve"}</button>`:'<span class="badge">Pågår</span>'}</div></div>`).join("");
-}
-function grade(id){
- let a=getAttempt(id);if(!a)return;current=a;let qs=EXAMS[a.examNo],out=`<div class="card"><h2>Retting – ${esc(a.name)} · Prøve ${a.examNo}</h2><p>Levert: ${esc(a.submitted||"")}</p></div>`;
- qs.forEach((q,i)=>{out+=`<div class="card"><h3>${esc(q.t)} <span class="weight">${esc(q.w)}</span></h3>`;
- q.subs.forEach((s,j)=>{let ans=localStorage.getItem(ansKey(a.id,i,j))||"Ikke besvart",pts=localStorage.getItem(ptsKey(a.id,i,j))||"",com=localStorage.getItem(comKey(a.id,i,j))||"";
- out+=`<h4>${esc(s[0])}</h4><div class="answer">${esc(ans)}</div><p><label>Poeng</label><input class="score" type="number" min="0" step="0.5" value="${esc(pts)}" oninput="localStorage.setItem(ptsKey('${a.id}',${i},${j}),this.value)"></p><label>Kommentar til lærlingen</label><textarea style="min-height:90px" oninput="localStorage.setItem(comKey('${a.id}',${i},${j}),this.value)">${esc(com)}</textarea>`;
- });out+="</div>" });
- out+=`<div class="card"><h3>Samlet tilbakemelding</h3><textarea id="overall" style="min-height:110px">${esc(a.overall||"")}</textarea><br><button onclick="publish('${a.id}')">Publiser resultat til lærlingen</button><button class="secondary" onclick="document.getElementById('grading').innerHTML=''">Lukk</button></div>`;
- document.getElementById("grading").innerHTML=out;window.scrollTo(0,document.getElementById("grading").offsetTop);
-}
-function publish(id){
- let a=getAttempt(id),qs=EXAMS[a.examNo],total=0,has=false;
- qs.forEach((q,i)=>q.subs.forEach((s,j)=>{let v=parseFloat(localStorage.getItem(ptsKey(id,i,j)));if(!isNaN(v)){total+=v;has=true}}));
- let overall=document.getElementById("overall").value;
- patchAttempt(id,{published:true,status:"Rettet – resultat publisert",overall,total:has?Math.round(total*10)/10:null});
- alert("Resultatet er publisert til lærlingen.");renderAttemptList();grade(id);
-}
-function viewResult(id){
- let a=getAttempt(id);if(!a||!a.published)return alert("Resultatet er ikke publisert ennå.");
- let qs=EXAMS[a.examNo],out=`<div class="card"><h2>Resultat – ${esc(a.name)} · Prøve ${a.examNo}</h2>${a.total!==null?`<div class="resultbox"><b>Total registrert poengsum: ${a.total}</b></div>`:""}${a.overall?`<div class="resultbox"><b>Samlet tilbakemelding:</b><br>${esc(a.overall)}</div>`:""}</div>`;
- qs.forEach((q,i)=>{out+=`<div class="card"><h3>${esc(q.t)}</h3>`;q.subs.forEach((s,j)=>{out+=`<h4>${esc(s[0])}</h4><p><b>Ditt svar:</b></p><div class="answer">${esc(localStorage.getItem(ansKey(id,i,j))||"Ikke besvart")}</div><p><b>Poeng:</b> ${esc(localStorage.getItem(ptsKey(id,i,j))||"–")}</p><div class="resultbox"><b>Instruktørkommentar:</b><br>${esc(localStorage.getItem(comKey(id,i,j))||"Ingen kommentar.")}</div>`});out+="</div>"});
- out+='<div class="card"><button class="secondary" onclick="openLearner()">Tilbake</button></div>';document.getElementById("resultContent").innerHTML=out;show("result");document.getElementById("headStatus").textContent="Resultat";
-}
+async function loadAnswers(){let {data,error}=await db.rpc('get_my_answers',{p_attempt_id:current.id,p_access_code:current.accessCode});if(error)return alert(error.message);cacheAnswers={};(data||[]).forEach(x=>cacheAnswers[`${x.question_no}:${x.subquestion_no}`]=x.answer_text||'')}
+async function saveOne(i,j,val){cacheAnswers[key(i,j)]=val;let {error}=await db.rpc('save_answer',{p_attempt_id:current.id,p_access_code:current.accessCode,p_question_no:i+1,p_subquestion_no:j+1,p_answer_text:val});if(error)console.error(error)}
+function renderExam(){let qs=EXAMS[current.examNo],q=qs[qi];document.getElementById("examWho").textContent=current.name;document.getElementById("examTitle").textContent=`Prøve ${current.examNo} · Oppgave ${qi+1} av ${qs.length}`;document.getElementById("qtitle").textContent=q.t;document.getElementById("qweight").textContent="Vekting: "+q.w;document.getElementById("qinfo").innerHTML=q.info;document.getElementById("bar").style.width=((qi+1)/qs.length*100)+"%";document.getElementById("qnav").innerHTML=qs.map((x,i)=>`<button class="${i===qi?'active':''}" onclick="jump(${i})">${i+1}</button>`).join("");document.getElementById("subs").innerHTML=q.subs.map((sub,j)=>`<div style="margin-top:18px"><h3>${esc(sub[0])}</h3><p>${esc(sub[1])}</p><textarea data-i="${qi}" data-j="${j}" oninput="debouncedSave(${qi},${j},this.value)" placeholder="Skriv svaret her...">${esc(cacheAnswers[key(qi,j)]||"")}</textarea></div>`).join("");document.getElementById("resource1").innerHTML=current.examNo===1?'<button onclick="openRefs1()">🖼️ Bilder og vedlegg – prøve 1</button>':'';document.getElementById("resource2").innerHTML=current.examNo===2?'<button onclick="openRefs2()">📐 Tegninger og løsninger</button> <a href="ArmaFlex_520_Sikkerhetsdatablad_NO.pdf" target="_blank"><button type="button">📄 Åpne SDS – ArmaFlex 520</button></a>':''}
+let saveTimers={};function debouncedSave(i,j,val){cacheAnswers[key(i,j)]=val;clearTimeout(saveTimers[key(i,j)]);saveTimers[key(i,j)]=setTimeout(()=>saveOne(i,j,val),600)}
+function jump(i){qi=i;renderExam()} function move(d){let n=qi+d,qs=EXAMS[current.examNo];if(n>=0&&n<qs.length){qi=n;renderExam()}}
+function startTimer(){clearInterval(timerHandle);tick();timerHandle=setInterval(tick,1000)} function tick(){if(!current)return;let left=Math.max(0,5*3600-Math.floor((Date.now()-current.started)/1000));let h=String(Math.floor(left/3600)).padStart(2,"0"),m=String(Math.floor(left%3600/60)).padStart(2,"0"),sec=String(left%60).padStart(2,"0");document.getElementById("timer").textContent=`${h}:${m}:${sec}`;if(left===0){clearInterval(timerHandle);submitAttempt(true)}}
+async function submitAttempt(auto=false){if(!auto&&!confirm("Vil du levere prøven? Etter levering kan svarene ikke endres."))return;for(const t of document.querySelectorAll('textarea[data-i]'))await saveOne(+t.dataset.i,+t.dataset.j,t.value);let {error}=await db.rpc('submit_exam',{p_attempt_id:current.id,p_access_code:current.accessCode});if(error)return alert('Kunne ikke levere: '+error.message);alert((auto?'Tiden er ute. Prøven er levert.':'Prøven er levert.')+`\n\nTa vare på tilgangskoden: ${current.accessCode}`);localStorage.removeItem('stord_v8_session');show('home');document.getElementById('headStatus').textContent='Prototype 8 – Nettversjon'}
+async function openInstructor(){show('instructor');document.getElementById('headStatus').textContent='Instruktør';document.getElementById('grading').innerHTML='';let {data:{session}}=await db.auth.getSession();if(session){document.getElementById('instructorLogin').classList.add('hidden');renderAttemptList()}else{document.getElementById('instructorLogin').classList.remove('hidden');document.getElementById('attemptList').innerHTML=''}}
+async function instructorSignUp(){let email=document.getElementById('instEmail').value.trim(),password=document.getElementById('instPassword').value;let {error}=await db.auth.signUp({email,password});if(error)return alert(error.message);alert('Konto opprettet. Bekreft e-posten hvis Supabase ber om det. Kontoen må deretter godkjennes som instruktør i databasen.')}
+async function instructorSignIn(){let email=document.getElementById('instEmail').value.trim(),password=document.getElementById('instPassword').value;let {error}=await db.auth.signInWithPassword({email,password});if(error)return alert('Innlogging feilet: '+error.message);document.getElementById('instructorLogin').classList.add('hidden');renderAttemptList()}
+async function renderAttemptList(){let {data,error}=await db.rpc('instructor_list_attempts');let el=document.getElementById('attemptList');if(error){el.innerHTML=`<div class="notice">Ingen instruktørtilgang ennå: ${esc(error.message)}</div>`;return}if(!data?.length){el.innerHTML='<p>Ingen besvarelser ennå.</p>';return}el.innerHTML=data.map(x=>`<div class="learnerrow"><div><b>${esc(x.student_name)}</b> – Prøve ${x.exam_no}<br><span class="muted">${esc(x.status)}${x.submitted_at?' · levert '+new Date(x.submitted_at).toLocaleString('no-NO'):''}</span></div><div>${x.submitted_at?`<button onclick="grade('${x.id}')">${x.published?'Åpne retting':'Rett prøve'}</button>`:'<span class="badge">Pågår</span>'}</div></div>`).join('')}
+async function grade(id){let {data,error}=await db.rpc('instructor_get_attempt',{p_attempt_id:id});if(error)return alert(error.message);let meta=data.meta,answers=data.answers||[];current={id,name:meta.student_name,examNo:meta.exam_no};let amap={};answers.forEach(a=>amap[`${a.question_no}:${a.subquestion_no}`]=a);let qs=EXAMS[current.examNo],out=`<div class="card"><h2>Retting – ${esc(current.name)} · Prøve ${current.examNo}</h2></div>`;qs.forEach((q,i)=>{out+=`<div class="card"><h3>${esc(q.t)} <span class="weight">${esc(q.w)}</span></h3>`;q.subs.forEach((sub,j)=>{let a=amap[`${i+1}:${j+1}`]||{};out+=`<h4>${esc(sub[0])}</h4><div class="answer">${esc(a.answer_text||'Ikke besvart')}</div><p><label>Poeng</label><input class="score gradepts" data-q="${i+1}" data-s="${j+1}" type="number" min="0" step="0.5" value="${esc(a.points??'')}"></p><label>Kommentar til lærlingen</label><textarea class="gradecom" data-q="${i+1}" data-s="${j+1}" style="min-height:90px">${esc(a.instructor_comment||'')}</textarea>`});out+='</div>'});out+=`<div class="card"><h3>Samlet tilbakemelding</h3><textarea id="overall" style="min-height:110px">${esc(meta.overall_comment||'')}</textarea><br><button onclick="publishOnline('${id}')">Publiser resultat til lærlingen</button><button class="secondary" onclick="document.getElementById('grading').innerHTML=''">Lukk</button></div>`;document.getElementById('grading').innerHTML=out;window.scrollTo(0,document.getElementById('grading').offsetTop)}
+async function publishOnline(id){let grading=[];document.querySelectorAll('.gradepts').forEach(inp=>{let q=+inp.dataset.q,s=+inp.dataset.s,com=document.querySelector(`.gradecom[data-q="${q}"][data-s="${s}"]`).value;grading.push({question_no:q,subquestion_no:s,points:inp.value===''?null:+inp.value,instructor_comment:com})});let {error}=await db.rpc('instructor_publish_result',{p_attempt_id:id,p_grading:grading,p_overall_comment:document.getElementById('overall').value});if(error)return alert(error.message);alert('Resultatet er publisert til lærlingen.');renderAttemptList();grade(id)}
+async function viewResultOnline(){let {data,error}=await db.rpc('get_result',{p_access_code:current.accessCode});if(error)return alert(error.message);let meta=data.meta,answers=data.answers||[],amap={};answers.forEach(a=>amap[`${a.question_no}:${a.subquestion_no}`]=a);let qs=EXAMS[meta.exam_no],out=`<div class="card"><h2>Resultat – ${esc(meta.student_name)} · Prøve ${meta.exam_no}</h2>${meta.total_points!==null?`<div class="resultbox"><b>Total registrert poengsum: ${meta.total_points}</b></div>`:''}${meta.overall_comment?`<div class="resultbox"><b>Samlet tilbakemelding:</b><br>${esc(meta.overall_comment)}</div>`:''}</div>`;qs.forEach((q,i)=>{out+=`<div class="card"><h3>${esc(q.t)}</h3>`;q.subs.forEach((sub,j)=>{let a=amap[`${i+1}:${j+1}`]||{};out+=`<h4>${esc(sub[0])}</h4><p><b>Ditt svar:</b></p><div class="answer">${esc(a.answer_text||'Ikke besvart')}</div><p><b>Poeng:</b> ${esc(a.points??'–')}</p><div class="resultbox"><b>Instruktørkommentar:</b><br>${esc(a.instructor_comment||'Ingen kommentar.')}</div>`});out+='</div>'});out+='<div class="card"><button class="secondary" onclick="openLearner()">Tilbake</button></div>';document.getElementById('resultContent').innerHTML=out;show('result');document.getElementById('headStatus').textContent='Resultat'}
 function openRefs1(){document.getElementById("refTitle").textContent="Prøve 1 – Bilder og vedlegg";document.getElementById("refBody").innerHTML='<div class="refgrid"><div class="refthumb" onclick="bigRef(\'prove1_isolasjonskasser.png\',\'Isolasjonskasser\')"><img src="prove1_isolasjonskasser.png"><b>Isolasjonskasser</b></div><div class="refthumb" onclick="bigRef(\'prove1_risikomatrise.png\',\'Risikomatrise\')"><img src="prove1_risikomatrise.png"><b>Risikomatrise</b></div></div><div id="bigref"></div>';document.getElementById("refs").classList.remove("hidden")}
 function openRefs2(){document.getElementById("refTitle").textContent="Prøve 2 – Tegninger og løsninger";document.getElementById("refBody").innerHTML='<div class="refgrid"><div class="refthumb" onclick="bigRef(\'rortegning.png\',\'Rørtegning\')"><img src="rortegning.png"><b>Rørtegning</b></div><div class="refthumb" onclick="bigRef(\'losning1.png\',\'Løsning 1\')"><img src="losning1.png"><b>Løsning 1</b></div><div class="refthumb" onclick="bigRef(\'losning2.png\',\'Løsning 2\')"><img src="losning2.png"><b>Løsning 2</b></div></div><div id="bigref"></div>';document.getElementById("refs").classList.remove("hidden")}
 function bigRef(src,title){document.getElementById("bigref").innerHTML=`<hr><h3>${esc(title)}</h3><img src="${src}" style="max-width:100%">`}
