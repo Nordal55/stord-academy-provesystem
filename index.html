@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="no">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stord Academy – Prøvesystem Prototype 7</title>
+<style>
+*{box-sizing:border-box} body{font-family:Arial,sans-serif;margin:0;background:#f3f5f6;color:#172126}
+header{background:#173f35;color:white;padding:18px 24px;display:flex;justify-content:space-between;gap:12px;align-items:center}
+main{max-width:1050px;margin:auto;padding:22px} .card{background:white;border-radius:12px;padding:20px;margin:0 0 16px;box-shadow:0 2px 9px #0001}
+button{background:#1f6b4f;color:white;border:0;border-radius:8px;padding:11px 16px;font-weight:700;cursor:pointer;margin:4px}
+button.secondary{background:#5c6870} button.danger{background:#9d2d2d} button:disabled{opacity:.5;cursor:not-allowed}
+input,textarea{width:100%;padding:10px;border:1px solid #bfc7ca;border-radius:7px;font:inherit} textarea{min-height:160px;resize:vertical}
+.hidden{display:none!important} .muted{color:#5f6b70} .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.examcard{border:2px solid #dfe6e3;border-radius:10px;padding:16px;flex:1;min-width:260px} .weight,.badge{display:inline-block;background:#e7f0ec;padding:5px 9px;border-radius:999px;font-size:.86rem;font-weight:700}
+.info{background:#eef4f1;border-left:4px solid #1f6b4f;padding:12px;margin:12px 0;white-space:pre-wrap} .answer{white-space:pre-wrap;background:#f6f7f8;padding:12px;border-radius:8px}
+.progress{height:10px;background:#dce2df;border-radius:20px;overflow:hidden} #bar{height:100%;background:#1f6b4f}
+.nav{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0} .nav button{padding:7px 10px;background:#74817b} .nav button.active{background:#1f6b4f}
+.modal{position:fixed;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;padding:20px;z-index:50} .modalbox{background:white;max-width:950px;width:100%;max-height:92vh;overflow:auto;border-radius:12px;padding:18px}
+.modalhead{display:flex;justify-content:space-between;align-items:center} .refgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.refthumb{border:1px solid #ddd;padding:10px;border-radius:8px;cursor:pointer} .refthumb img,#bigref img{max-width:100%;height:auto}
+.learnerrow{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 0;border-bottom:1px solid #e2e6e4}
+.resultbox{border-left:5px solid #1f6b4f;background:#f4faf7;padding:14px;border-radius:8px;margin:12px 0}
+.score{max-width:130px} .notice{background:#fff7df;border:1px solid #ead28c;padding:12px;border-radius:8px}
+</style>
+</head>
+<body>
+<header><div><b>STORD ACADEMY</b><br><span style="font-size:.9rem">Isolatørfaget – Prøvesystem</span></div><div id="headStatus">Prototype 7</div></header>
+<main>
+<section id="home">
+ <div class="card"><h1>Prøvesystem</h1><p>Velg hvordan systemet skal brukes.</p>
+ <button onclick="openLearner()">Lærling</button><button class="secondary" onclick="openInstructor()">Instruktør</button></div>
+</section>
+
+<section id="learner" class="hidden">
+ <div class="card"><h2>Lærling</h2>
+ <label>Navn</label><input id="studentName" autocomplete="off" placeholder="Skriv fullt navn" oninput="renderStudentHistory()">
+ <div id="studentHistory" style="margin-top:12px"></div>
+ <h3>Start ny prøve</h3>
+ <div class="row">
+  <div class="examcard"><h3>Prøve 1 – Isolatørfaget</h3><p>6 hovedoppgaver · 5 timer</p><button onclick="newAttempt(1)">Start ny Prøve 1</button></div>
+  <div class="examcard"><h3>Prøve 2 – ISL3103</h3><p>7 hovedoppgaver · 5 timer</p><button onclick="newAttempt(2)">Start ny Prøve 2</button></div>
+ </div><br><button class="secondary" onclick="show('home')">Tilbake</button></div>
+</section>
+
+<section id="exam" class="hidden">
+ <div class="card">
+  <div class="row" style="justify-content:space-between"><div><b id="examWho"></b><br><span id="examTitle"></span></div><div><b>Tid igjen: <span id="timer">05:00:00</span></b></div></div>
+  <div class="progress"><div id="bar"></div></div>
+  <div class="nav" id="qnav"></div>
+  <div class="row"><span id="resource1"></span><span id="resource2"></span></div>
+ </div>
+ <div class="card"><h2 id="qtitle"></h2><span class="weight" id="qweight"></span><div class="info" id="qinfo"></div><div id="subs"></div></div>
+ <div class="row"><button class="secondary" onclick="move(-1)">← Forrige</button><button onclick="move(1)">Neste →</button><button class="danger" onclick="submitAttempt()">Lever prøve</button></div>
+</section>
+
+<section id="instructor" class="hidden">
+ <div class="card"><h2>Instruktør – besvarelser</h2><p class="muted">Besvarelser, retting og resultater lagres lokalt i denne nettleseren.</p>
+ <div id="attemptList"></div><br><button class="secondary" onclick="show('home')">Tilbake</button></div>
+ <div id="grading"></div>
+</section>
+
+<section id="result" class="hidden"><div id="resultContent"></div></section>
+</main>
+
+<div id="refs" class="modal hidden" onclick="if(event.target===this)closeRefs()"><div class="modalbox">
+ <div class="modalhead"><h2 id="refTitle">Vedlegg</h2><button class="secondary" onclick="closeRefs()">Lukk ×</button></div>
+ <div id="refBody"></div>
+</div></div>
+
+<script>
+const exam1Questions=[
+{t:"Oppgave 1 – Maskiner og håndverktøy",w:"15 %",info:"Situasjon: Du har fått i oppgave å drifte et prefabrikkeringsverksted. Verkstedet har ikke programmerbare maskiner. Du får individuelle bestillinger fra prosjekt.<br><b>Vedlegg:</b> Se originalbildene av isolasjonskassene via knappen «Se bilder og vedlegg – prøve 1».",subs:[
+["1a – Maskiner","Du skal produsere isolasjonskasser i tynnplatemetall. Oppgi aktuelle maskiner og beskriv hva de brukes til."],
+["1b – Håndverktøy","Oppgi aktuelle håndverktøy du trenger for å produsere isolasjonskassene, og beskriv hva hvert verktøy brukes til."]]},
+{t:"Oppgave 2 – Material- og prisberegning",w:"15 %",info:"Bestilling og priser:<br>• 0,5 mm rustfritt stål: 200 kr/m²<br>• 0,7 mm rustfritt stål: 280 kr/m²<br>• 0,6 mm aluminium: 170 kr/m²<br>• 20 løpemeter 0,5 mm rustfritt stål, diameter 180 mm, 50 mm overlapp<br>• 15 løpemeter 0,6 mm aluminium, diameter 250 mm, 50 mm overlapp<br>• 10 plater 0,7 mm rustfritt stål, lengde 2000 mm og bredde 1000 mm",subs:[
+["2a","Regn ut hvor mange kvadratmeter 0,5 mm rustfritt stål som trengs. Vis utregning."],
+["2b","Regn ut hvor mange kvadratmeter 0,7 mm rustfritt stål som trengs. Vis utregning."],
+["2c","Regn ut hvor mange kvadratmeter 0,6 mm aluminium som trengs. Vis utregning."],
+["2d","Regn ut totalprisen for bestillingen. Vis hvordan du kommer fram til svaret."]]},
+{t:"Oppgave 3 – Kasseproduksjon",w:"20 %",info:"Arbeidsoppdrag: Du skal prefabrikkere en isolasjonskasse etter kundens tegning.<br>• Isolasjonskassen skal isoleres med 50 mm AES-fiber, 128 kg/m³, helinnpakket i folie.<br>• Kassen skal prefabrikkeres i 0,7 mm rustfritt stål.<br>• Montøren i felt skal kunne klippe ut og tilpasse isolasjonskassen.",subs:[
+["3a – Produksjonsrekkefølge","Beskriv steg for steg hvordan du vil produsere isolasjonskassen. Ta med kontroll av underlag/tegning, oppmerking, kapping, forming/falsing, sammenføyning, isolasjon og sluttkontroll."],
+["3b – Sjekkliste","Lag en sjekkliste som dokumenterer at den produserte kassen er i samsvar med bestillingen. Sjekklisten skal inneholde minst ti kontrollpunkter."]]},
+{t:"Oppgave 4 – Kapplengder",w:"10 %",info:"Bruk π = 3,1416 dersom du regner manuelt. Vis gjerne utregning.",subs:[
+["4a","Hva er kapplengden til én løpemeter med diameter 150 mm og 50 mm overlapp? Alternativer: 176,5 mm / 375 mm / 456 mm / 521 mm / 980 mm. Oppgi svar og utregning."],
+["4b","Hva er kapplengden per del til en todelt løpemeter med diameter 175 mm og 50 mm overlapp? Rund oppover til nærmeste hele millimeter. Alternativer: 305 / 325 / 550 / 580 / 600 mm. Oppgi svar og utregning."],
+["4c","Du finner en platebit på 1361 × 1000 mm. Du skal lage én kapsel med 50 mm overlapp. Hva er største diameter kapselen kan ha? Rund nedover til nærmeste hele millimeter. Alternativer: 417 / 423 / 442 / 449 / 463 / 483 mm. Oppgi svar og utregning."],
+["4d","Du lager en firkantet kasse H400 × B400 mm. Kassen skal være todelt med to like kassedeler, 50 mm overlapp og Pittsburgh-fals. Hva blir kapplengden på én endebunn med 5 mm opptrekkskant? Alternativer: 400×400 / 410×200 / 400×225 / 410×230 / 410×225 mm. Oppgi svar og utregning."]]},
+{t:"Oppgave 5 – Kundeforespørsel",w:"25 %",info:"En kunde har ferdigisolerte rør innendørs på ca. 60 °C. Flensene og ventilene har hittil stått uisolerte. Kunden ønsker å redusere varmetap og kostnader og ber om tre alternative løsninger.",subs:[
+["5a – Tre løsningsalternativer","Beskriv tre faglig gjennomførbare alternativer kunden kan vurdere. Beskriv materialer, utførelse og hvordan løsningen kan åpnes/demonteres ved behov."],
+["5b – Sammenligning","Drøft fordeler og ulemper ved de tre alternativene med hensyn til kostnader, vedlikehold og miljø/energi."]]},
+{t:"Oppgave 6 – Risikovurdering",w:"15 %",info:"Lag en risikovurdering for drift av prefabrikkeringsverkstedet. <b>Se risikomatrise i vedleggsknappen.</b> Bruk S × K. Sannsynlighet (S): 1 svært lite sannsynlig – 5 svært sannsynlig. Konsekvens (K): 1 ufarlig – 5 katastrofal. Risiko = S × K. I denne treningsprøven regnes score 1–10 som akseptabel etter at tiltak er vurdert; dette er en øvingsmatrise, ikke en universell myndighetsgrense.",subs:[
+["6","Beskriv aktivitet/fare, mulig hendelse, S, K, risiko, risikoreduserende tiltak, ny S, ny K og ny risiko. Avslutt med hvilke tiltak som bør prioriteres først og hvorfor."]]}
+];
+const exam2Questions=[
+{t:"Oppgave 1 – Isolasjonssystem",w:"30 %",info:`Arbeidsoppdrag: Du skal isolere og kapsle kalde og varme rør gjennom et gjenvinningsanlegg. Alle flenser og ventiler skal isoleres med isolasjonskasser. Sprinklersystemet testes jevnlig.<br><br><b>Rødt rør:</b> utvendig diameter 114 mm, 90 °C, løsning 1: 12 mm distanseisolering + 40 mm mineralull + kapsling.<br><b>Blått rør:</b> utvendig diameter 168 mm, 4 °C, løsning 2: 40 mm celleglass + fuktsperre + 25 mm lamellmatte + kapsling.`,subs:[
+["1a","Hva er fordeler og ulemper med løsning 1 sammenlignet med tradisjonelle mineralullrørskåler med aluminiumsfolie uten kapsling?"],
+["1b","Hva er fordeler og ulemper med løsning 2 sammenlignet med cellegummi uten beskyttelse?"]]},
+{t:"Oppgave 2 – Bruk av sikkerhetsdatablad",w:"5 %",info:"Bruk sikkerhetsdatabladet for ArmaFlex 520-lim når du svarer. Klikk på «Åpne SDS – ArmaFlex 520» øverst i prøven. Dokumentet åpnes i en ny fane slik at du kan ha prøven og SDS-et åpne samtidig.",subs:[
+["2a","Hva slags personlig verneutstyr skal brukes ved påføring av ArmaFlex 520-lim?"],
+["2b","Hva betyr H225 på faremerkingen, og hvilke forholdsregler må tas?"],
+["2c","Hva skal du gjøre dersom du får ArmaFlex 520 i øynene under arbeid?"],
+["2d","Hva er flammepunktet til limet, og hva betyr det i praksis?"],
+["2e","Hvor og hvordan skal produktet lagres for å ivareta sikkerhet og holdbarhet?"],
+["2f","Hvilke stoffer i limet er miljøskadelige, og hvordan skal søl eller avfall håndteres?"]]},
+{t:"Oppgave 3 – Materialbestilling",w:"15 %",info:"Bruk arbeidsoppdraget fra oppgave 1. Oppgi forutsetninger dersom tegningen ikke gir nok informasjon.",subs:[
+["3a","Sett opp en bestillingsliste for isolasjon og forbruksmateriell for løsning 1. Ta med materiale, dimensjon/type, mengde og enhet."],
+["3b","Sett opp en bestillingsliste for isolasjon og forbruksmateriell for løsning 2. Ta med materiale, dimensjon/type, mengde og enhet."]]},
+{t:"Oppgave 4 – Håndverktøy",w:"10 %",info:"Tenk gjennom hele installasjonsjobben for både varmt og kaldt system.",subs:[
+["4","Sett opp en bestillingsliste for alt håndverktøy du trenger for å utføre installasjonsjobben. Forklar gjerne hva de viktigste verktøyene brukes til."]]},
+{t:"Oppgave 5 – Monteringsbeskrivelse",w:"20 %",info:"Beskriv arbeidet faglig og i riktig rekkefølge.",subs:[
+["5a","Beskriv installasjonsmetoden for løsning 1."],
+["5b","Beskriv installasjonsmetoden for løsning 2."],
+["5c","Beskriv hvordan isolasjonssystemene påvirker funksjonalitet, energiforbruk og kostnadsinnsparing over tid."]]},
+{t:"Oppgave 6 – Risiko og tiltak",w:"10 %",info:"Ta utgangspunkt i aktivitetene i arbeidsoppdraget.",subs:[
+["6","Identifiser risiko og risikoreduserende tiltak for hver relevant arbeidsaktivitet. Beskriv aktivitet, risiko og tiltak."]]},
+{t:"Oppgave 7 – Sluttdokumentasjon",w:"10 %",info:"Tenk som fagarbeider ved overlevering til kunde.",subs:[
+["7","Beskriv hvordan du kan dokumentere det ferdige arbeidet for kunden."]]}
+];
+const EXAMS={1:exam1Questions,2:exam2Questions};
+let current=null, qi=0, timerHandle=null;
+
+function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;")}
+function show(id){["home","learner","exam","instructor","result"].forEach(x=>document.getElementById(x).classList.toggle("hidden",x!==id)); if(id!=="exam"){clearInterval(timerHandle);timerHandle=null}}
+function loadAttempts(){try{return JSON.parse(localStorage.getItem("stord_v7_attempts")||"[]")}catch(e){return []}}
+function saveAttempts(a){localStorage.setItem("stord_v7_attempts",JSON.stringify(a))}
+function getAttempt(id){return loadAttempts().find(a=>a.id===id)}
+function patchAttempt(id,patch){let a=loadAttempts(),i=a.findIndex(x=>x.id===id);if(i>=0){a[i]={...a[i],...patch};saveAttempts(a);current=a[i]}}
+function ansKey(id,i,j){return `stord_v7_ans_${id}_${i}_${j}`}
+function ptsKey(id,i,j){return `stord_v7_pts_${id}_${i}_${j}`}
+function comKey(id,i,j){return `stord_v7_com_${id}_${i}_${j}`}
+
+function openLearner(){show("learner");document.getElementById("studentName").value="";document.getElementById("studentHistory").innerHTML="";document.getElementById("headStatus").textContent="Lærling"}
+function newAttempt(examNo){
+ let name=document.getElementById("studentName").value.trim().replace(/\s+/g," ");
+ if(!name)return alert("Skriv inn navn først.");
+ let id="A"+Date.now()+"_"+Math.random().toString(36).slice(2,7);
+ let a={id,name,examNo,started:Date.now(),submitted:null,published:false,status:"Pågår",overall:"",total:null};
+ let all=loadAttempts();all.push(a);saveAttempts(all);openAttempt(id);
+}
+function openAttempt(id){
+ let a=getAttempt(id);if(!a)return alert("Fant ikke besvarelsen.");
+ if(a.submitted)return alert("Denne prøven er allerede levert.");
+ current=a;qi=0;show("exam");document.getElementById("headStatus").textContent=`Prøve ${a.examNo} · ${a.name}`;renderExam();startTimer();
+}
+function renderStudentHistory(){
+ let name=document.getElementById("studentName").value.trim().toLowerCase(),el=document.getElementById("studentHistory");
+ if(!name){el.innerHTML="";return}
+ let mine=loadAttempts().filter(a=>a.name.toLowerCase()===name).reverse();
+ if(!mine.length){el.innerHTML='<div class="notice">Nytt navn – prøvene under starter helt rent.</div>';return}
+ let s='<h3>Tidligere prøver</h3>';
+ mine.forEach(a=>{
+   let action=!a.submitted?`<button onclick="openAttempt('${a.id}')">Fortsett</button>`:a.published?`<button onclick="viewResult('${a.id}')">Se resultat</button>`:'<span class="badge">Levert – venter på retting</span>';
+   s+=`<div class="learnerrow"><div><b>Prøve ${a.examNo}</b><br><span class="muted">${esc(a.status)}</span></div>${action}</div>`;
+ });
+ el.innerHTML=s;
+}
+function saveCurrentPage(){
+ if(!current)return;
+ document.querySelectorAll("textarea[data-i]").forEach(t=>localStorage.setItem(ansKey(current.id,+t.dataset.i,+t.dataset.j),t.value));
+}
+function renderExam(){
+ let qs=EXAMS[current.examNo],q=qs[qi];
+ document.getElementById("examWho").textContent=current.name;
+ document.getElementById("examTitle").textContent=`Prøve ${current.examNo} · Oppgave ${qi+1} av ${qs.length}`;
+ document.getElementById("qtitle").textContent=q.t;document.getElementById("qweight").textContent="Vekting: "+q.w;
+ document.getElementById("qinfo").innerHTML=q.info;document.getElementById("bar").style.width=((qi+1)/qs.length*100)+"%";
+ document.getElementById("qnav").innerHTML=qs.map((x,i)=>`<button class="${i===qi?'active':''}" onclick="jump(${i})">${i+1}</button>`).join("");
+ document.getElementById("subs").innerHTML=q.subs.map((s,j)=>`<div style="margin-top:18px"><h3>${esc(s[0])}</h3><p>${esc(s[1])}</p><textarea data-i="${qi}" data-j="${j}" oninput="localStorage.setItem(ansKey(current.id,${qi},${j}),this.value)" placeholder="Skriv svaret her...">${esc(localStorage.getItem(ansKey(current.id,qi,j))||"")}</textarea></div>`).join("");
+ document.getElementById("resource1").innerHTML=current.examNo===1?'<button onclick="openRefs1()">🖼️ Bilder og vedlegg – prøve 1</button>':'';
+ document.getElementById("resource2").innerHTML=current.examNo===2?'<button onclick="openRefs2()">📐 Tegninger og løsninger</button> <a href="ArmaFlex_520_Sikkerhetsdatablad_NO.pdf" target="_blank"><button type="button">📄 Åpne SDS – ArmaFlex 520</button></a>':'';
+}
+function jump(i){saveCurrentPage();qi=i;renderExam()} function move(d){saveCurrentPage();let n=qi+d,qs=EXAMS[current.examNo];if(n>=0&&n<qs.length){qi=n;renderExam()}}
+function startTimer(){clearInterval(timerHandle);tick();timerHandle=setInterval(tick,1000)}
+function tick(){
+ if(!current)return;let left=Math.max(0,5*3600-Math.floor((Date.now()-current.started)/1000));
+ let h=String(Math.floor(left/3600)).padStart(2,"0"),m=String(Math.floor(left%3600/60)).padStart(2,"0"),s=String(left%60).padStart(2,"0");
+ document.getElementById("timer").textContent=`${h}:${m}:${s}`;if(left===0){clearInterval(timerHandle);submitAttempt(true)}
+}
+function submitAttempt(auto=false){
+ saveCurrentPage();if(!auto&&!confirm("Vil du levere prøven? Etter levering kan lærlingen ikke endre svarene."))return;
+ patchAttempt(current.id,{submitted:new Date().toLocaleString("no-NO"),status:"Levert"});
+ alert(auto?"Tiden er ute. Prøven er levert.":"Prøven er levert.");
+ show("home");document.getElementById("headStatus").textContent="Prototype 7";
+}
+
+function openInstructor(){show("instructor");document.getElementById("headStatus").textContent="Instruktør";document.getElementById("grading").innerHTML="";renderAttemptList()}
+function renderAttemptList(){
+ let a=loadAttempts().slice().reverse(),el=document.getElementById("attemptList");
+ if(!a.length){el.innerHTML="<p>Ingen besvarelser ennå.</p>";return}
+ el.innerHTML=a.map(x=>`<div class="learnerrow"><div><b>${esc(x.name)}</b> – Prøve ${x.examNo}<br><span class="muted">${esc(x.status)}${x.submitted?" · levert "+esc(x.submitted):""}</span></div><div>${x.submitted?`<button onclick="grade('${x.id}')">${x.published?"Åpne retting":"Rett prøve"}</button>`:'<span class="badge">Pågår</span>'}</div></div>`).join("");
+}
+function grade(id){
+ let a=getAttempt(id);if(!a)return;current=a;let qs=EXAMS[a.examNo],out=`<div class="card"><h2>Retting – ${esc(a.name)} · Prøve ${a.examNo}</h2><p>Levert: ${esc(a.submitted||"")}</p></div>`;
+ qs.forEach((q,i)=>{out+=`<div class="card"><h3>${esc(q.t)} <span class="weight">${esc(q.w)}</span></h3>`;
+ q.subs.forEach((s,j)=>{let ans=localStorage.getItem(ansKey(a.id,i,j))||"Ikke besvart",pts=localStorage.getItem(ptsKey(a.id,i,j))||"",com=localStorage.getItem(comKey(a.id,i,j))||"";
+ out+=`<h4>${esc(s[0])}</h4><div class="answer">${esc(ans)}</div><p><label>Poeng</label><input class="score" type="number" min="0" step="0.5" value="${esc(pts)}" oninput="localStorage.setItem(ptsKey('${a.id}',${i},${j}),this.value)"></p><label>Kommentar til lærlingen</label><textarea style="min-height:90px" oninput="localStorage.setItem(comKey('${a.id}',${i},${j}),this.value)">${esc(com)}</textarea>`;
+ });out+="</div>" });
+ out+=`<div class="card"><h3>Samlet tilbakemelding</h3><textarea id="overall" style="min-height:110px">${esc(a.overall||"")}</textarea><br><button onclick="publish('${a.id}')">Publiser resultat til lærlingen</button><button class="secondary" onclick="document.getElementById('grading').innerHTML=''">Lukk</button></div>`;
+ document.getElementById("grading").innerHTML=out;window.scrollTo(0,document.getElementById("grading").offsetTop);
+}
+function publish(id){
+ let a=getAttempt(id),qs=EXAMS[a.examNo],total=0,has=false;
+ qs.forEach((q,i)=>q.subs.forEach((s,j)=>{let v=parseFloat(localStorage.getItem(ptsKey(id,i,j)));if(!isNaN(v)){total+=v;has=true}}));
+ let overall=document.getElementById("overall").value;
+ patchAttempt(id,{published:true,status:"Rettet – resultat publisert",overall,total:has?Math.round(total*10)/10:null});
+ alert("Resultatet er publisert til lærlingen.");renderAttemptList();grade(id);
+}
+function viewResult(id){
+ let a=getAttempt(id);if(!a||!a.published)return alert("Resultatet er ikke publisert ennå.");
+ let qs=EXAMS[a.examNo],out=`<div class="card"><h2>Resultat – ${esc(a.name)} · Prøve ${a.examNo}</h2>${a.total!==null?`<div class="resultbox"><b>Total registrert poengsum: ${a.total}</b></div>`:""}${a.overall?`<div class="resultbox"><b>Samlet tilbakemelding:</b><br>${esc(a.overall)}</div>`:""}</div>`;
+ qs.forEach((q,i)=>{out+=`<div class="card"><h3>${esc(q.t)}</h3>`;q.subs.forEach((s,j)=>{out+=`<h4>${esc(s[0])}</h4><p><b>Ditt svar:</b></p><div class="answer">${esc(localStorage.getItem(ansKey(id,i,j))||"Ikke besvart")}</div><p><b>Poeng:</b> ${esc(localStorage.getItem(ptsKey(id,i,j))||"–")}</p><div class="resultbox"><b>Instruktørkommentar:</b><br>${esc(localStorage.getItem(comKey(id,i,j))||"Ingen kommentar.")}</div>`});out+="</div>"});
+ out+='<div class="card"><button class="secondary" onclick="openLearner()">Tilbake</button></div>';document.getElementById("resultContent").innerHTML=out;show("result");document.getElementById("headStatus").textContent="Resultat";
+}
+function openRefs1(){document.getElementById("refTitle").textContent="Prøve 1 – Bilder og vedlegg";document.getElementById("refBody").innerHTML='<div class="refgrid"><div class="refthumb" onclick="bigRef(\'prove1_isolasjonskasser.png\',\'Isolasjonskasser\')"><img src="prove1_isolasjonskasser.png"><b>Isolasjonskasser</b></div><div class="refthumb" onclick="bigRef(\'prove1_risikomatrise.png\',\'Risikomatrise\')"><img src="prove1_risikomatrise.png"><b>Risikomatrise</b></div></div><div id="bigref"></div>';document.getElementById("refs").classList.remove("hidden")}
+function openRefs2(){document.getElementById("refTitle").textContent="Prøve 2 – Tegninger og løsninger";document.getElementById("refBody").innerHTML='<div class="refgrid"><div class="refthumb" onclick="bigRef(\'rortegning.png\',\'Rørtegning\')"><img src="rortegning.png"><b>Rørtegning</b></div><div class="refthumb" onclick="bigRef(\'losning1.png\',\'Løsning 1\')"><img src="losning1.png"><b>Løsning 1</b></div><div class="refthumb" onclick="bigRef(\'losning2.png\',\'Løsning 2\')"><img src="losning2.png"><b>Løsning 2</b></div></div><div id="bigref"></div>';document.getElementById("refs").classList.remove("hidden")}
+function bigRef(src,title){document.getElementById("bigref").innerHTML=`<hr><h3>${esc(title)}</h3><img src="${src}" style="max-width:100%">`}
+function closeRefs(){document.getElementById("refs").classList.add("hidden")}
+</script>
+</body></html>
